@@ -1,0 +1,9 @@
+torch>=2.1
+numpy
+pandas
+scipy
+scikit-learn
+openpyxl
+matplotlib
+# only for language-model text embeddings (Colab)
+transformers>=4.40

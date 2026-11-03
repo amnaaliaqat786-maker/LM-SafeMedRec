@@ -1,0 +1,2 @@
+previous_visit {'ja': 0.4324, 'prauc': 0.4293, 'p': 0.5823, 'r': 0.6627, 'f1': 0.5924, 'ddi': 0.0973, 'avg_meds': 22.7677}
+logistic_regression {'ja': 0.4871, 'prauc': 0.7535, 'p': 0.727, 'r': 0.6038, 'f1': 0.6456, 'ddi': 0.0772, 'avg_meds': 17.1877}

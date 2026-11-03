@@ -1,0 +1,15 @@
+lmsmr_text-none_ddi-1_s0: 325,362 trainable parameters
+ep  0 loss 0.3975 | val ja 0.4799 prauc 0.7372 f1 0.6398 ddi 0.0739 meds 23.5 | 1.2 min
+ep  1 loss 0.3563 | val ja 0.5004 prauc 0.7528 f1 0.6582 ddi 0.0773 meds 24.1 | 1.3 min
+ep  2 loss 0.3432 | val ja 0.5017 prauc 0.7562 f1 0.6594 ddi 0.0729 meds 24.4 | 1.3 min
+ep  3 loss 0.3337 | val ja 0.5101 prauc 0.7633 f1 0.6673 ddi 0.0702 meds 23.8 | 1.3 min
+ep  4 loss 0.3279 | val ja 0.5087 prauc 0.7646 f1 0.6654 ddi 0.0764 meds 25.5 | 1.2 min
+ep  5 loss 0.3213 | val ja 0.5153 prauc 0.7688 f1 0.6714 ddi 0.0711 meds 24.2 | 1.3 min
+ep  6 loss 0.3171 | val ja 0.5200 prauc 0.7709 f1 0.6754 ddi 0.0722 meds 23.9 | 1.3 min
+ep  7 loss 0.3137 | val ja 0.5170 prauc 0.7699 f1 0.6727 ddi 0.0723 meds 25.3 | 1.2 min
+ep  8 loss 0.3085 | val ja 0.5207 prauc 0.7710 f1 0.6759 ddi 0.0729 meds 24.1 | 1.2 min
+ep  9 loss 0.3047 | val ja 0.5186 prauc 0.7678 f1 0.6741 ddi 0.0713 meds 25.1 | 1.1 min
+ep 10 loss 0.3030 | val ja 0.5229 prauc 0.7694 f1 0.6779 ddi 0.0704 meds 23.6 | 1.1 min
+ep 11 loss 0.2997 | val ja 0.5203 prauc 0.7688 f1 0.6756 ddi 0.0695 meds 24.5 | 1.1 min
+TEST {"ja": 0.5231, "prauc": 0.7664, "p": 0.6406, "r": 0.7515, "f1": 0.678, "ddi": 0.071, "avg_meds": 23.686}
+TEST+decode {"ja": 0.5115, "prauc": 0.7664, "p": 0.6788, "r": 0.685, "f1": 0.6679, "ddi": 0.0464, "avg_meds": 20.3012}

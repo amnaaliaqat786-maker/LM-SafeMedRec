@@ -1,0 +1,14 @@
+gamenet_text-none_ddi-0_s0: 455,002 trainable parameters
+ep  0 loss 0.3050 | val ja 0.4100 prauc 0.6877 f1 0.5754 ddi 0.1012 meds 16.7 | 2.4 min
+ep  1 loss 0.2874 | val ja 0.4418 prauc 0.7073 f1 0.6043 ddi 0.1076 meds 17.1 | 2.4 min
+ep  2 loss 0.2754 | val ja 0.4511 prauc 0.7140 f1 0.6133 ddi 0.0960 meds 17.9 | 2.1 min
+ep  3 loss 0.2688 | val ja 0.4526 prauc 0.7212 f1 0.6139 ddi 0.0934 meds 16.7 | 2.1 min
+ep  4 loss 0.2639 | val ja 0.4609 prauc 0.7231 f1 0.6222 ddi 0.0987 meds 19.0 | 2.2 min
+ep  5 loss 0.2595 | val ja 0.4665 prauc 0.7321 f1 0.6275 ddi 0.1003 meds 17.5 | 2.2 min
+ep  6 loss 0.2563 | val ja 0.4668 prauc 0.7350 f1 0.6282 ddi 0.0895 meds 17.1 | 2.2 min
+ep  7 loss 0.2533 | val ja 0.4787 prauc 0.7378 f1 0.6390 ddi 0.1046 meds 18.4 | 2.2 min
+ep  8 loss 0.2509 | val ja 0.4786 prauc 0.7407 f1 0.6391 ddi 0.1002 meds 18.3 | 2.3 min
+ep  9 loss 0.2486 | val ja 0.4859 prauc 0.7453 f1 0.6455 ddi 0.0954 meds 18.8 | 2.4 min
+ep 10 loss 0.2467 | val ja 0.4856 prauc 0.7483 f1 0.6456 ddi 0.0920 meds 18.1 | 2.4 min
+ep 11 loss 0.2448 | val ja 0.4887 prauc 0.7502 f1 0.6479 ddi 0.0953 meds 18.7 | 2.5 min
+TEST {"ja": 0.4852, "prauc": 0.7456, "p": 0.6822, "r": 0.6347, "f1": 0.6442, "ddi": 0.0945, "avg_meds": 18.9474}
