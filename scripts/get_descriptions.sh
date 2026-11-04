@@ -30,7 +30,9 @@ unzip -p "$TMP/cms32.zip" CMS32_DESC_LONG_SG.txt \
 echo "Creating diagnosis CSV..."
 
 if command -v py >/dev/null 2>&1; then
-    PYTHON=(py -3.14)
+    PYTHON=(py -3)
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON=(python3)
 elif command -v python >/dev/null 2>&1; then
     PYTHON=(python)
 else
