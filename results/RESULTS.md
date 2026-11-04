@@ -1,6 +1,6 @@
 # Test-set results (MIMIC-III, GAMENet split, 1,058 test patients)
 
-Ground-truth DDI rate of the real prescriptions in the training data is shown in the README.
+Ground-truth DDI rates for real prescriptions in the training and test splits are reported in the README.
 
 | Model | Jaccard | PR-AUC | F1 | DDI rate | Avg #drugs | Params |
 |---|---|---|---|---|---|---|

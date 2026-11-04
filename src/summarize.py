@@ -45,7 +45,7 @@ for name, m, p, ep in rows:
 table = "\n".join(lines)
 with open(os.path.join(R, "RESULTS.md"), "w") as fh:
     fh.write("# Test-set results (MIMIC-III, GAMENet split, 1,058 test patients)\n\n")
-    fh.write("Ground-truth DDI rate of the real prescriptions in the training data is shown in the README.\n\n")
+    fh.write("Ground-truth DDI rates for real prescriptions in the training and test splits are reported in the README.\n\n")
     fh.write(table + "\n")
 print(table)
 
@@ -56,13 +56,13 @@ try:
     fig, ax = plt.subplots(figsize=(7.5, 5))
     for name, m, _, _ in rows:
         ax.scatter(m["ddi"], m["ja"], s=60)
-        short = name.replace("LM-SafeMedRec", "Ours").replace(" + DDI-aware decoding", " + DDI filter")
+        short = name.replace("text=tfidf", "TF-IDF")
         below = "no text" in name           # near-identical points: put one label under the dot
         ax.annotate(short, (m["ddi"], m["ja"]), fontsize=7, textcoords="offset points",
                     xytext=(6, -10 if below else 4))
-    ax.set_xlabel("DDI rate (lower is safer)")
+    ax.set_xlabel("DDI rate (lower indicates fewer predicted interactions)")
     ax.set_ylabel("Jaccard (higher is more accurate)")
-    ax.set_title("Accuracy vs. safety on the MIMIC-III test set")
+    ax.set_title("Prediction Performance vs. DDI Rate on the MIMIC-III Test Set")
     ax.grid(alpha=0.3)
     fig.tight_layout()
     fig.savefig(os.path.join(R, "comparison.png"), dpi=160)

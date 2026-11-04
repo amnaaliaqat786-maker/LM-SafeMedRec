@@ -1,11 +1,19 @@
-"""Load the GAMENet pickles without executing code stored inside them.
+"""Restricted loader for trusted GAMENet pickle files.
 
-The original voc_final.pkl stores a Voc class serialized with dill, so a plain
-pickle.load would rebuild functions from that file. This loader only allows a
-short list of numpy reconstruction helpers and turns everything else into an
-inert Stub that just remembers its arguments. It then copies the plain data
-(dicts, lists, arrays) into normal Python objects.
+The original GAMENet vocabulary file may contain a Voc object serialized
+using dill. This module uses a custom Unpickler that permits selected
+NumPy reconstruction helpers and replaces unsupported classes with
+inert placeholder objects.
+
+The loader then extracts the vocabulary mappings required by
+LM-SafeMedRec.
+
+Security note:
+This is a restricted compatibility loader, not a guarantee that
+arbitrary or untrusted pickle files are safe to deserialize. Only use
+pickle files obtained from trusted sources.
 """
+
 import pickle
 import numpy as np
 

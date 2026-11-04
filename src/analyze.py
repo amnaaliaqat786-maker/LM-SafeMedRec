@@ -1,127 +1,367 @@
-"""Interpretability and error analysis for a trained LM-SafeMedRec checkpoint.
+"""Aggregate interpretability and error analysis for LM-SafeMedRec.
 
-  python analyze.py --run lmsmr_text-tfidf_ddi-1_s0 --compare lmsmr_text-none_ddi-1_s0
+Usage:
+    python analyze.py --run lmsmr_text-tfidf_ddi-1_s0
+    python analyze.py --run lmsmr_text-tfidf_ddi-1_s0 \
+        --compare lmsmr_text-none_ddi-1_s0
 
-Writes results/analysis_<run>.md with:
-  1. how much the model leans on text vs. learned ID embeddings (gate values)
-  2. Jaccard on test visits grouped by how rare their diagnoses are in training,
-     compared with the --compare run (does text help rare codes?)
-  3. a case study: one test patient, the drugs recommended at the last visit,
-     which earlier visits the history path attended to, and any interacting pairs
+Writes:
+    results/analysis_<run>.md
+
+The report contains:
+    1. Aggregate text-versus-ID embedding gate values.
+    2. Aggregate Jaccard scores grouped by diagnosis rarity.
+
+Privacy:
+    This script does not export individual patient records,
+    diagnosis histories, medication recommendations, or
+    patient-level case studies.
 """
+
 import argparse
 import json
 import os
+
 import numpy as np
 import torch
 
-from data import load_all, split, code_texts, ROOT
+from data import load_all, split, ROOT
 from lm_safemedrec import LMSafeMedRec
-from metrics import ddi_aware_decode
 
-ap = argparse.ArgumentParser()
+
+# --------------------------------------------------
+# 1. Command-line arguments
+# --------------------------------------------------
+
+ap = argparse.ArgumentParser(
+    description="Aggregate interpretability and error analysis."
+)
+
 ap.add_argument("--run", required=True)
 ap.add_argument("--compare", default=None)
-ap.add_argument("--patient", type=int, default=None, help="index into test set for the case study")
+
 a = ap.parse_args()
 
-records, voc, voc_size, ddi, ehr = load_all()
-train, val, test = split(records)
-texts, _ = code_texts(voc)
-n_med = voc_size[2]
 
+# --------------------------------------------------
+# 2. Load dataset and split
+# --------------------------------------------------
+
+records, voc, voc_size, ddi, ehr = load_all()
+
+train, val, test = split(records)
+
+
+# --------------------------------------------------
+# 3. Load trained model
+# --------------------------------------------------
 
 def load_model(run):
-    cfg = json.load(open(os.path.join(ROOT, "results", f"{run}.json")))["args"]
+
+    result_path = os.path.join(
+        ROOT, "results", f"{run}.json"
+    )
+
+    with open(result_path, "r", encoding="utf-8") as f:
+        cfg = json.load(f)["args"]
+
     text = None
+
     if cfg["text"] != "none":
-        z = np.load(os.path.join(ROOT, "data", "text_emb", f"{cfg['text']}.npz"))
-        text = {k: z[k] for k in ("diag", "proc", "med")}
-    m = LMSafeMedRec(voc_size, ehr, ddi, text=text, dim=cfg["dim"], layers=cfg["layers"])
-    m.load_state_dict(torch.load(os.path.join(ROOT, "results", "checkpoints", f"{run}.pt")))
-    return m.eval()
+
+        embedding_path = os.path.join(
+            ROOT,
+            "data",
+            "text_emb",
+            f"{cfg['text']}.npz"
+        )
+
+        z = np.load(embedding_path)
+
+        text = {
+            k: z[k]
+            for k in ("diag", "proc", "med")
+        }
+
+    model = LMSafeMedRec(
+        voc_size,
+        ehr,
+        ddi,
+        text=text,
+        dim=cfg["dim"],
+        layers=cfg["layers"]
+    )
+
+    checkpoint_path = os.path.join(
+        ROOT,
+        "results",
+        "checkpoints",
+        f"{run}.pt"
+    )
+
+    model.load_state_dict(
+        torch.load(checkpoint_path, map_location="cpu")
+    )
+
+    return model.eval()
 
 
 model = load_model(a.run)
-out = [f"# Analysis of `{a.run}`\n"]
 
-# 1. gates
+
+# --------------------------------------------------
+# 4. Initialize aggregate report
+# --------------------------------------------------
+
+out = [
+    f"# Aggregate Analysis of `{a.run}`\n"
+]
+
+
+# --------------------------------------------------
+# 5. Text embedding gate analysis
+# --------------------------------------------------
+
 out.append("## 1. Reliance on text embeddings\n")
-out.append("Mean gate value g in e = (1-g)·ID + g·Text (0 = ignores text, 1 = text only).\n")
-out.append("| Code type | mean g |\n|---|---|")
-for nm, mod in (("Diagnosis", model.diag), ("Procedure", model.proc), ("Drug class", model.drug)):
-    g = torch.sigmoid(mod.gate).mean().item() if mod.use_text else 0.0
-    out.append(f"| {nm} | {g:.3f} |")
 
-# 2. rare-code analysis
+out.append(
+    "Mean gate value g in e = (1-g) * ID + g * Text "
+    "(0 = ignores text, 1 = text only).\n"
+)
+
+out.append("| Code type | Mean gate value |")
+out.append("|---|---|")
+
+for name, module in (
+    ("Diagnosis", model.diag),
+    ("Procedure", model.proc),
+    ("Drug class", model.drug)
+):
+
+    if module.use_text:
+
+        gate_value = (
+            torch.sigmoid(module.gate).mean().item()
+        )
+
+    else:
+
+        gate_value = 0.0
+
+    out.append(
+        f"| {name} | {gate_value:.3f} |"
+    )
+
+
+# --------------------------------------------------
+# 6. Diagnosis rarity analysis
+# --------------------------------------------------
+
 freq = np.zeros(voc_size[0])
-for p in train:
-    for v in p:
-        freq[v[0]] += 1
+
+for patient in train:
+
+    for visit in patient:
+
+        for diagnosis in visit[0]:
+
+            freq[diagnosis] += 1
 
 
-def visit_jaccards(m):
-    res = []
-    for p in test:
-        prob = m.forward_all(p)
-        for t, v in enumerate(p):
-            pred = set(np.where(prob[t] >= 0.5)[0]); gt = set(v[2])
-            u = pred | gt
-            res.append((min(freq[v[0]]), len(pred & gt) / len(u) if u else 0))
-    return res
+def visit_jaccards(model):
+
+    results = []
+
+    with torch.no_grad():
+
+        for patient in test:
+
+            probabilities = model.forward_all(patient)
+
+            for t, visit in enumerate(patient):
+
+                predictions = set(
+                    np.where(probabilities[t] >= 0.5)[0]
+                )
+
+                actual = set(visit[2])
+
+                union = predictions | actual
+
+                if union:
+
+                    score = (
+                        len(predictions & actual)
+                        / len(union)
+                    )
+
+                else:
+
+                    score = 0.0
+
+                if len(visit[0]) == 0:
+                    rarest_frequency = 0
+                else:
+                    rarest_frequency = min(
+                        freq[diagnosis]
+                        for diagnosis in visit[0]
+                    )
+                results.append(
+                    (rarest_frequency, score)
+                )
+
+    return results
+
+# Calculate results for the current model
+
+current_results = visit_jaccards(model)
+
+# Optional comparison model
+
+comparison_results = None
+
+if a.compare:
+
+    comparison_model = load_model(a.compare)
+
+    comparison_results = visit_jaccards(
+        comparison_model
+    )
+
+    if len(comparison_results) != len(current_results):
+        raise ValueError(
+            "Current and comparison models have different "
+            "numbers of test visits."
+        )
+# --------------------------------------------------
+# 7. Group results by diagnosis rarity
+# --------------------------------------------------
+
+bins = [
+    (0, 10, "Fewer than 10 training occurrences"),
+    (10, 100, "10 to 99 times"),
+    (100, float("inf"), "100+ times")
+]
+
+out.append(
+    "\n## 2. Accuracy by diagnosis rarity (aggregate test results)\n"
+)
+
+out.append(
+    "Each test visit is grouped by the training frequency "
+    "of its rarest diagnosis code. Visits without diagnosis "
+    "codes are included in the first group.\n"
+)
+
+if comparison_results is not None:
+
+    out.append(
+        "| Group | Visits | Jaccard (current) | "
+        "Jaccard (comparison) | Difference |"
+    )
+
+    out.append(
+        "|---|---:|---:|---:|---:|"
+    )
+
+else:
+
+    out.append(
+        "| Group | Visits | Jaccard (current) |"
+    )
+
+    out.append(
+        "|---|---:|---:|"
+    )
 
 
-bins = [(0, 10, "rarest diagnosis seen < 10 times"), (10, 100, "10 to 99 times"), (100, 1e9, "100+ times")]
-cur = visit_jaccards(model)
-cmp = visit_jaccards(load_model(a.compare)) if a.compare else None
-out.append("\n## 2. Accuracy by diagnosis rarity (test visits)\n")
-out.append("Each visit is grouped by the training frequency of its rarest diagnosis code.\n")
-hdr = "| Group | Visits | Jaccard (this run) |" + (f" Jaccard (`{a.compare}`) | Difference |" if cmp else "")
-out.append(hdr)
-out.append("|---|---|---|" + ("---|---|" if cmp else ""))
-for lo, hi, nm in bins:
-    idx = [i for i, (f, _) in enumerate(cur) if lo <= f < hi]
-    j1 = np.mean([cur[i][1] for i in idx])
-    row = f"| {nm} | {len(idx)} | {j1:.4f} |"
-    if cmp:
-        j2 = np.mean([cmp[i][1] for i in idx])
-        row += f" {j2:.4f} | {j1 - j2:+.4f} |"
-    out.append(row)
+for lower, upper, label in bins:
 
-# 3. case study
-med_names = texts["med"]
-med_codes = voc["med_voc"]
-cands = [i for i, p in enumerate(test) if 3 <= len(p) <= 5]
-pi = a.patient if a.patient is not None else cands[0]
-p = test[pi]
-with torch.no_grad():
-    logits, attn = model(p, return_attn=True)
-prob = torch.sigmoid(logits).numpy()
-t = len(p) - 1
-pred = list(np.where(prob[t] >= 0.5)[0])
-safe = ddi_aware_decode(ddi, margin=0.3)(prob[t], pred)
-gt = set(p[t][2])
-out.append(f"\n## 3. Case study: test patient {pi}, visit {t + 1} of {len(p)}\n")
-out.append("Diagnoses at this visit: " + "; ".join(texts["diag"][c] for c in p[t][0][:6]) +
-           (" ..." if len(p[t][0]) > 6 else "") + "\n")
-out.append("Attention of the history path over earlier visits:\n")
-for i in range(t):
-    w = attn[t - 1, i].item()
-    out.append(f"- visit {i + 1}: weight {w:.2f} (diagnoses: " +
-               "; ".join(texts["diag"][c] for c in p[i][0][:3]) + ")")
-top = sorted(pred, key=lambda d: -prob[t, d])[:12]
-out.append("\nTop recommended drug classes:\n")
-out.append("| ATC | Drug class | Probability | Actually given | Kept after DDI filter |\n|---|---|---|---|---|")
-for d in top:
-    out.append(f"| {med_codes[d]} | {med_names[d]} | {prob[t, d]:.2f} | {'yes' if d in gt else 'no'} | "
-               f"{'yes' if d in safe else 'removed'} |")
-pairs = [(med_codes[i], med_codes[j]) for k, i in enumerate(pred) for j in pred[k + 1:] if ddi[i, j] or ddi[j, i]]
-out.append(f"\nInteracting pairs in the raw recommendation: {len(pairs)}"
-           + (": " + ", ".join(f"{x}–{y}" for x, y in pairs[:8]) if pairs else "") + "\n")
-pj = len(set(pred) & gt) / len(set(pred) | gt)
-sj = len(set(safe) & gt) / len(set(safe) | gt)
-out.append(f"Jaccard for this visit: {pj:.3f} raw, {sj:.3f} after the DDI filter.\n")
+    indices = [
+        i
+        for i, (frequency, score) in enumerate(current_results)
+        if lower <= frequency < upper
+    ]
 
-path = os.path.join(ROOT, "results", f"analysis_{a.run}.md")
-open(path, "w").write("\n".join(out))
+    if not indices:
+
+        current_jaccard = float("nan")
+
+    else:
+
+        current_jaccard = np.mean([
+            current_results[i][1]
+            for i in indices
+        ])
+
+    if comparison_results is not None:
+
+        if indices:
+
+            comparison_jaccard = np.mean([
+                comparison_results[i][1]
+                for i in indices
+            ])
+
+            difference = (
+                current_jaccard - comparison_jaccard
+            )
+
+        else:
+
+            comparison_jaccard = float("nan")
+            difference = float("nan")
+
+        out.append(
+            f"| {label} | {len(indices)} | "
+            f"{current_jaccard:.4f} | "
+            f"{comparison_jaccard:.4f} | "
+            f"{difference:+.4f} |"
+        )
+
+    else:
+
+        out.append(
+            f"| {label} | {len(indices)} | "
+            f"{current_jaccard:.4f} |"
+        )
+# --------------------------------------------------
+# 8. Privacy statement
+# --------------------------------------------------
+
+out.append(
+    "\n## 3. Privacy Note\n"
+)
+
+out.append(
+    "This report contains aggregate model interpretability "
+    "and evaluation statistics only. Individual patient records, "
+    "diagnosis histories, medication recommendations, and "
+    "patient-level case studies are not exported.\n"
+)
+
+
+# --------------------------------------------------
+# 9. Save aggregate report
+# --------------------------------------------------
+
+output_path = os.path.join(
+    ROOT,
+    "results",
+    f"analysis_{a.run}.md"
+)
+
+with open(
+    output_path,
+    "w",
+    encoding="utf-8"
+) as f:
+
+    f.write("\n".join(out))
+
+
 print("\n".join(out))
+
+print(
+    f"\nAggregate analysis saved to: {output_path}"
+)

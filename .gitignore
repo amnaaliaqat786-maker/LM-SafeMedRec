@@ -1,7 +1,10 @@
-data/gamenet/
-data/descriptions/
-data/text_emb/
+data/
 results/checkpoints/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.env
+.DS_Store
+*.pkl
+*.pth
+*.pt
