@@ -157,3 +157,28 @@ This repository reports aggregate experimental results only. Patient-level recor
 MIMIC-III is credentialed clinical data. Users must obtain their own authorized access through PhysioNet and process the data according to the applicable data-use requirements. Do not upload patient-level data or derived patient-level records to this repository.
 
 The aggregate results reported here were generated using processed files obtained from the public GAMENet repository. Their public availability should not be interpreted as permission to redistribute patient-derived data.
+
+## Preparing Medical Code Descriptions
+
+To download and prepare the three medical-code description files, run:
+
+```bash
+bash scripts/get_descriptions.sh
+```
+
+The script downloads and validates the following files:
+
+* `cms32_dx.csv` — ICD-9-CM Version 32 diagnosis descriptions.
+* `CMS32_DESC_LONG_SG.txt` — ICD-9-CM Version 32 procedure descriptions.
+* `who_atc_2021.csv` — December 2021 ATC drug-class descriptions.
+
+### Data Sources and Attribution
+
+* **CMS:** ICD-9-CM Version 32 diagnosis and procedure descriptions, Centers for Medicare & Medicaid Services.
+* **WHO ATC:** ATC/DDD Index 2021, WHO Collaborating Centre for Drug Statistics Methodology. The historical CSV snapshot is obtained through the `fabkury/atcd` repository.
+
+Review the applicable copyright and usage terms before using or redistributing these materials. The WHO ATC snapshot is excluded from this repository.
+
+This script downloads medical-code descriptions only. It does not download patient records or GAMENet processed files.
+
+GAMENet/MIMIC-III-derived files must be obtained and prepared independently under the applicable data-use agreement.
