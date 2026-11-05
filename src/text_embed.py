@@ -52,12 +52,16 @@ OUT_DIR = os.path.join(ROOT, "data", "text_emb")
 
 
 def public_code_texts():
-    """Load public medical code descriptions without loading patient data."""
+    """Load public medical descriptions using data.py text preparation rules."""
+
+    dx = _dx_table()
+    sg = _sg_table()
+    atc = _atc_table()
 
     tables = {
-        "diag": _dx_table(),
-        "proc": _sg_table(),
-        "med": _atc_table(),
+        "diag": dx,
+        "proc": sg,
+        "med": atc,
     }
 
     texts = {}
@@ -84,12 +88,27 @@ def public_code_texts():
         ordered_codes = sorted(valid)
 
         codes[key] = ordered_codes
-        texts[key] = [valid[code] for code in ordered_codes]
+        prepared_texts = []
+
+        for code in ordered_codes:
+            description = valid[code]
+
+            if key == "med":
+                # Match the ATC level-3 + level-4 preparation in data.py.
+                level3 = atc.get(code[:3], "")
+
+                description = description.lower()
+
+                if level3 and level3.lower() not in description:
+                    description = f"{level3.lower()}: {description}"
+
+            prepared_texts.append(description)
+
+        texts[key] = prepared_texts
 
         print(f"{key}: {len(ordered_codes)} public descriptions")
 
     return texts, codes
-
 
 def tfidf_embed(texts, dim=128, seed=0):
     """Create TF-IDF embeddings using word and character features."""
@@ -350,4 +369,3 @@ if __name__ == "__main__":
 
     print("\nEmbeddings saved successfully:")
     print(output_path)
-    
